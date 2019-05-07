@@ -26,8 +26,6 @@ docs_params = {k: v for k, v in zip(docs_df['Parameter name'],
 cx = os.environ['GOOG_CSE_CX']
 key = os.environ['GOOG_CSE_KEY']
 
-table = pd.read_csv('serp.csv')
-
 app = dash.Dash(__name__,  external_stylesheets=[dbc.themes.COSMO])
 
 server = app.server
@@ -217,4 +215,4 @@ def plot_data(serp_results):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server()
