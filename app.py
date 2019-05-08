@@ -16,6 +16,8 @@ from dash_table import DataTable
 from dash.dependencies import Output, Input, State
 from dash.exceptions import PreventUpdate
 
+logging.basicConfig(level=logging.INFO)
+
 img_base64 = base64.b64encode(open('./logo.png', 'rb').read()).decode('ascii')
 
 adv.SERP_GOOG_VALID_VALS['searchType'] = {'image', 'web'}
