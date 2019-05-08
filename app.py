@@ -211,7 +211,6 @@ def plot_data(serp_results):
     fig.layout.plot_bgcolor = '#eeeeee'
     fig.layout.autosize = False
     fig.layout.margin.r = 2
-    fig.layout.margin.l = 2
     fig.layout.margin.pad = 0
     return fig
 
