@@ -103,17 +103,11 @@ app.layout = html.Div([
                             download="rawdata.csv", href="", target="_blank",
                             n_clicks=0), style={'text-align': 'right'}),
             DataTable(id='serp_table', sorting=True,
-                      style_table={'border-width': '0px',
-                                   'overflowX': 'scroll',
-                                   'maxHeight': 500, },
-                      style_as_list_view=False,
                       style_cell_conditional=[{
                           'if': {'row_index': 'odd'},
                           'backgroundColor': '#eeeeee'}],
                       n_fixed_rows=1,
-                      style_cell={'maxWidth': '400px', 'padding': '5px',
-                                  'whiteSpace': 'normal',
-                                  'minWidth': '0px'},
+                      style_cell={'width': '50px'},
                       virtualization=True)
         ], lg=9, xs=11)
     ]),
