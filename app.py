@@ -102,13 +102,15 @@ app.layout = html.Div([
             html.Div(html.A('Download Table', id='download_link',
                             download="rawdata.csv", href="", target="_blank",
                             n_clicks=0), style={'text-align': 'right'}),
-            DataTable(id='serp_table', sorting=True,
-                      style_cell_conditional=[{
-                          'if': {'row_index': 'odd'},
-                          'backgroundColor': '#eeeeee'}],
-                      n_fixed_rows=1,
-                      style_cell={'width': '50px'},
-                      virtualization=True)
+            dcc.Loading(
+                DataTable(id='serp_table', sorting=True,
+                          style_cell_conditional=[{
+                              'if': {'row_index': 'odd'},
+                              'backgroundColor': '#eeeeee'}],
+                          n_fixed_rows=1,
+                          style_cell={'width': '130px'},
+                          virtualization=True)
+            ),
         ], lg=9, xs=11)
     ]),
 ], style={'background-color': '#eeeeee'})
