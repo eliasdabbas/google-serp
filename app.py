@@ -25,6 +25,7 @@ adv.SERP_GOOG_VALID_VALS['searchType'] = {'image', 'web'}
 docs_df = pd.read_csv('api_docs_df.csv')
 docs_params = {k: v for k, v in zip(docs_df['Parameter name'],
                                     docs_df['Description'])}
+del docs_params['googlehost']
 cx = os.environ['GOOG_CSE_CX']
 key = os.environ['GOOG_CSE_KEY']
 
@@ -79,13 +80,16 @@ app.layout = html.Div([
             dcc.Dropdown(id=key,
                          placeholder=re.sub('[A-Z]',  r' \g<0>', key).lower(),
                          multi=True,
-                         options=[{'label': x, 'value': x}
-                                  for x in sorted(adv.SERP_GOOG_VALID_VALS[key])
-                                  ])
-            for key in adv.SERP_GOOG_VALID_VALS
+                         options=[{'label': x, 'value': x} for x in
+                                  sorted(adv.SERP_GOOG_VALID_VALS.get(key))])
+            if adv.SERP_GOOG_VALID_VALS.get(key) else
+            dbc.Input(id=key, placeholder=re.sub('[A-Z]',
+                                                 r' \g<0>', key).lower())
+
+            for key in docs_params
         ] + [
             dbc.Tooltip(docs_params[key][:450], target=key)
-            for key in adv.SERP_GOOG_VALID_VALS
+            for key in docs_params
         ] + [html.Br() for i in range(6)],
                 lg=2, xs=12,style={'margin-left': '1%', 'align': 'center'}),
         dbc.Col([
@@ -131,11 +135,11 @@ def download_df(data_df):
 @app.callback(Output('serp_results', 'data'),
               [Input('button', 'n_clicks')],
               [State('query', 'value')] +
-              [State(key, 'value')for key in adv.SERP_GOOG_VALID_VALS])
+              [State(key, 'value')for key in docs_params])
 def get_serp_data_save_to_store(n_clicks, query, *args):
     if query is None:
         raise PreventUpdate
-    kwargs = {k: arg for k, arg in zip(adv.SERP_GOOG_VALID_VALS.keys(), args)}
+    kwargs = {k: arg for k, arg in zip(docs_params.keys(), args)}
     if kwargs['searchType'] and 'web' in kwargs['searchType']:
         kwargs['searchType'][kwargs['searchType'].index('web')] = None
     adv.SERP_GOOG_VALID_VALS['searchType'] = {'image', None}
