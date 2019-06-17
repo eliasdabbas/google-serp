@@ -111,7 +111,7 @@ app.layout = html.Div([
                                min=0.01, max=1, step=0.01),
                     dbc.Container(id='opacity_output')
                 ], lg=3, xs=8),
-            ]),
+            ], id='chart_controls', style={'display': 'none'}),
             dcc.Loading([
                 dcc.Graph(id='serp_graph',
                           figure={'layout': {'paper_bgcolor': '#eeeeee',
@@ -141,8 +141,8 @@ app.layout = html.Div([
 @app.callback(Output('opacity_output', 'children'),
               [Input('opacity_control', 'value')])
 def display_opacity_value(opacity):
-
     return str(round(opacity * 100)) + '%'
+
 
 @app.callback(Output('download_link', 'href'),
               [Input('serp_results', 'data')])
@@ -188,7 +188,8 @@ def populate_table_data(serp_results):
     return df.iloc[:, :8].to_dict('rows'), columns[:8]
 
 
-@app.callback(Output('serp_graph', 'figure'),
+@app.callback([Output('serp_graph', 'figure'),
+               Output('chart_controls', 'style')],
               [Input('serp_results', 'data'),
                Input('num_domains_to_plot', 'value'),
                Input('opacity_control', 'value')])
@@ -248,9 +249,10 @@ def plot_data(serp_results, num_domains, opacity):
     fig.layout.autosize = False
     fig.layout.margin.r = 2
     fig.layout.margin.pad = 0
-    return fig
+    return [fig, {'display': 'inline-flex', 'width': '100%'}]
 
 
 if __name__ == '__main__':
     app.run_server()
+
 
