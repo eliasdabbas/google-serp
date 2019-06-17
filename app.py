@@ -96,12 +96,30 @@ app.layout = html.Div([
             dcc.Loading([
                 dcc.Store('serp_results'),
             ], type='circle'),
-            dcc.Graph(id='serp_graph',
-                      figure={'layout': {'paper_bgcolor': '#eeeeee',
-                                         'plot_bgcolor': '#eeeeee',
-                                         'yaxis': {'zeroline': False},
-                                         'xaxis': {'zeroline': False}}},
-                      config={'displayModeBar': False}),
+            dbc.Row([
+                dbc.Col([
+                    dbc.Label('Number of domains to plot:'),
+                    dcc.Dropdown(id='num_domains_to_plot',
+                                 options=[{'label': num, 'value': num}
+                                          for num in range(1, 51)],
+                                 value=10),
+                ], lg=3, xs=8),
+                dbc.Col([
+                    dbc.Label('Chart markers opacity:'),
+                    dcc.Slider(id='opacity_control',
+                               value=0.1, updatemode='mouseup',
+                               min=0.01, max=1, step=0.01),
+                    dbc.Container(id='opacity_output')
+                ], lg=3, xs=8),
+            ]),
+            dcc.Loading([
+                dcc.Graph(id='serp_graph',
+                          figure={'layout': {'paper_bgcolor': '#eeeeee',
+                                             'plot_bgcolor': '#eeeeee',
+                                             'yaxis': {'zeroline': False},
+                                             'xaxis': {'zeroline': False}}},
+                          config={'displayModeBar': False}),
+            ]),
             html.Br(), html.Br(),
             html.Div(html.A('Download Table', id='download_link',
                             download="rawdata.csv", href="", target="_blank",
@@ -119,6 +137,12 @@ app.layout = html.Div([
     ]),
 ], style={'background-color': '#eeeeee'})
 
+
+@app.callback(Output('opacity_output', 'children'),
+              [Input('opacity_control', 'value')])
+def display_opacity_value(opacity):
+
+    return str(round(opacity * 100)) + '%'
 
 @app.callback(Output('download_link', 'href'),
               [Input('serp_results', 'data')])
@@ -165,19 +189,27 @@ def populate_table_data(serp_results):
 
 
 @app.callback(Output('serp_graph', 'figure'),
-              [Input('serp_results', 'data')])
-def plot_data(serp_results):
+              [Input('serp_results', 'data'),
+               Input('num_domains_to_plot', 'value'),
+               Input('opacity_control', 'value')])
+def plot_data(serp_results, num_domains, opacity):
     if serp_results is None:
         raise PreventUpdate
     df = pd.DataFrame(serp_results, columns=serp_results[0].keys())
-    top_domains = df['displayLink'].value_counts()[:10].index.tolist()
+    top_domains = df['displayLink'].value_counts()[:num_domains].index.tolist()
     top_df = df[df['displayLink'].isin(top_domains)]
+    top_df_counts_means = (top_df
+                           .groupby('displayLink', as_index=False)
+                           .agg({'rank': ['count', 'mean']}))
+    top_df_counts_means.columns = ['displayLink', 'rank_count', 'rank_mean']
+    top_df = (pd.merge(top_df, top_df_counts_means)
+              .sort_values(['rank_count', 'rank_mean'],
+                           ascending=[False, True]))
     rank_counts = (top_df
                    .groupby(['displayLink', 'rank'])
                    .agg({'rank': ['count']})
                    .reset_index())
     rank_counts.columns = ['displayLink', 'rank', 'count']
-
     summary = (df
                .groupby(['displayLink'], as_index=False)
                .agg({'rank': ['count', 'mean']})
@@ -194,16 +226,20 @@ def plot_data(serp_results):
     fig = go.Figure()
     fig.add_scatter(x=top_df['displayLink'].str.replace('www.', ''),
                     y=top_df['rank'], mode='markers',
-                    marker={'size': 35, 'opacity': 0.1})
-
+                    marker={'size': 35, 'opacity': opacity})
     fig.add_scatter(x=rank_counts['displayLink'].str.replace('www.', ''),
                     y=rank_counts['rank'], mode='text',
                     text=rank_counts['count'])
-
+    for domain in rank_counts['displayLink'].unique():
+        fig.add_scatter(x=[domain.replace('www.', '')],
+                        y=[0], mode='text',
+                        marker={'size': 50},
+                        text=str(rank_counts[rank_counts['displayLink']==domain]['count'].sum()))
     fig.layout.hovermode = False
     fig.layout.yaxis.autorange = 'reversed'
     fig.layout.yaxis.zeroline = False
-    fig.layout.yaxis.tickvals = list(range(1, 11))
+    fig.layout.yaxis.tickvals = list(range(0, 11))
+    fig.layout.yaxis.ticktext = ['Total<br>appearances'] + list(range(1, 11))
     fig.layout.height = 600
     fig.layout.yaxis.title = 'SERP Rank (number of appearances)'
     fig.layout.showlegend = False
@@ -217,3 +253,4 @@ def plot_data(serp_results):
 
 if __name__ == '__main__':
     app.run_server()
+
