@@ -13,6 +13,7 @@ import plotly.graph_objs as go
 
 from urllib.parse import quote
 from dash_table import DataTable
+from dash_table.FormatTemplate import Format
 from dash.dependencies import Output, Input, State
 from dash.exceptions import PreventUpdate
 
@@ -85,7 +86,6 @@ app.layout = html.Div([
             if adv.SERP_GOOG_VALID_VALS.get(key) else
             dbc.Input(id=key, placeholder=re.sub('[A-Z]',
                                                  r' \g<0>', key).lower())
-
             for key in docs_params
         ] + [
             dbc.Tooltip(docs_params[key][:450], target=key)
@@ -105,10 +105,11 @@ app.layout = html.Div([
                                  value=10),
                 ], lg=3, xs=8),
                 dbc.Col([
-                    dbc.Label('Chart markers opacity:'),
-                    dcc.Slider(id='opacity_control',
-                               value=0.1, updatemode='mouseup',
-                               min=0.01, max=1, step=0.01),
+                    dbc.Label('Compare specific domains:'),
+                    dcc.Dropdown(id='select_domain',
+                                 multi=True,
+                                 options=[{'label': n, 'value': n}
+                                          for n in range(1, 11)]),
                     dbc.Container(id='opacity_output')
                 ], lg=3, xs=8),
             ], id='chart_controls', style={'display': 'none'}),
@@ -125,12 +126,14 @@ app.layout = html.Div([
                             download="rawdata.csv", href="", target="_blank",
                             n_clicks=0), style={'text-align': 'right'}),
             dcc.Loading(
-                DataTable(id='serp_table', sorting=True,
+                DataTable(id='serp_table',
+                          fixed_rows={'headers': True},
+                          sort_action='native',
                           style_cell_conditional=[{
                               'if': {'row_index': 'odd'},
                               'backgroundColor': '#eeeeee'}],
-                          n_fixed_rows=1,
-                          style_cell={'width': '130px'},
+                          style_cell={'font-family': 'Source Sans Pro',
+                                      'width': '130px'},
                           virtualization=True)
             ),
         ], lg=9, xs=11)
@@ -138,10 +141,13 @@ app.layout = html.Div([
 ], style={'background-color': '#eeeeee'})
 
 
-@app.callback(Output('opacity_output', 'children'),
-              [Input('opacity_control', 'value')])
-def display_opacity_value(opacity):
-    return str(round(opacity * 100)) + '%'
+@app.callback(Output('select_domain', 'options'),
+              [Input('serp_results', 'data')])
+def set_domain_select_options(data_df):
+    df = pd.DataFrame(data_df)
+    domains = df['displayLink'].unique()
+    return [{'label': domain.replace('www.', ''), 'value': domain}
+            for domain in domains]
 
 
 @app.callback(Output('download_link', 'href'),
@@ -183,20 +189,24 @@ def populate_table_data(serp_results):
         raise PreventUpdate
     df = pd.DataFrame(serp_results, columns=serp_results[0].keys())
     del df['pagemap']
-    columns = [{'name': re.sub('[A-Z]', r' \g<0>', x).title(), 'id': x}
+    columns = [{'name': re.sub('[A-Z]', r' \g<0>', x).title(), 'id': x,
+                'format': Format(group=',') if 'esults' in x else None}
                for x in df.columns]
-    return df.iloc[:, :8].to_dict('rows'), columns[:8]
+    last_col = df.columns.tolist().index('totalResults') + 1
+    return df.iloc[:, :last_col].to_dict('rows'), columns[:last_col]
 
 
 @app.callback([Output('serp_graph', 'figure'),
                Output('chart_controls', 'style')],
               [Input('serp_results', 'data'),
                Input('num_domains_to_plot', 'value'),
-               Input('opacity_control', 'value')])
-def plot_data(serp_results, num_domains, opacity):
+               Input('select_domain', 'value')])
+def plot_data(serp_results, num_domains=10, select_domain=None):
     if serp_results is None:
         raise PreventUpdate
     df = pd.DataFrame(serp_results, columns=serp_results[0].keys())
+    if select_domain:
+        df = df[df['displayLink'].isin(select_domain)]
     top_domains = df['displayLink'].value_counts()[:num_domains].index.tolist()
     top_df = df[df['displayLink'].isin(top_domains)]
     top_df_counts_means = (top_df
@@ -223,36 +233,53 @@ def plot_data(serp_results, num_domains, opacity):
     summary['avg_rank'] = summary['avg_rank'].round(1)
     summary['coverage'] = (summary['coverage'].mul(100)
                            .round(1).astype(str).add('%'))
+    num_queries = df['queryTime'].nunique()
 
     fig = go.Figure()
     fig.add_scatter(x=top_df['displayLink'].str.replace('www.', ''),
                     y=top_df['rank'], mode='markers',
-                    marker={'size': 35, 'opacity': opacity})
+                    marker={'size': 30, 'opacity': 1/rank_counts['count'].max()})
+
     fig.add_scatter(x=rank_counts['displayLink'].str.replace('www.', ''),
                     y=rank_counts['rank'], mode='text',
                     text=rank_counts['count'])
+
     for domain in rank_counts['displayLink'].unique():
+        rank_counts_subset = rank_counts[rank_counts['displayLink'] == domain]
         fig.add_scatter(x=[domain.replace('www.', '')],
                         y=[0], mode='text',
                         marker={'size': 50},
-                        text=str(rank_counts[rank_counts['displayLink']==domain]['count'].sum()))
-    fig.layout.hovermode = False
-    fig.layout.yaxis.autorange = 'reversed'
-    fig.layout.yaxis.zeroline = False
-    fig.layout.yaxis.tickvals = list(range(0, 11))
-    fig.layout.yaxis.ticktext = ['Total<br>appearances'] + list(range(1, 11))
-    fig.layout.height = 600
+                        text=str(rank_counts_subset['count'].sum()))
+
+        fig.add_scatter(x=[domain.replace('www.', '')],
+                        y=[-1], mode='text',
+                        text=format(rank_counts_subset['count'].sum() / num_queries, '.1%'))
+        fig.add_scatter(x=[domain.replace('www.', '')],
+                        y=[-2], mode='text',
+                        marker={'size': 50},
+                        text=str(round(rank_counts_subset['rank']
+                                       .mul(rank_counts_subset['count'])
+                                       .sum() / rank_counts_subset['count']
+                                       .sum(), 2)))
+
+    minrank, maxrank = min(top_df['rank'].unique()), max(top_df['rank'].unique())
+    fig.layout.yaxis.tickvals = [-2, -1, 0] + list(range(minrank, maxrank+1))
+    fig.layout.yaxis.ticktext = ['Avg. Pos.', 'Coverage', 'Total<br>appearances'] + list(range(minrank, maxrank+1))
+
+    fig.layout.height = max([600, 100 + ((maxrank - minrank) * 50)])
     fig.layout.yaxis.title = 'SERP Rank (number of appearances)'
     fig.layout.showlegend = False
     fig.layout.paper_bgcolor = '#eeeeee'
     fig.layout.plot_bgcolor = '#eeeeee'
     fig.layout.autosize = False
     fig.layout.margin.r = 2
+    fig.layout.margin.l = 120
     fig.layout.margin.pad = 0
+    fig.layout.hovermode = False
+    fig.layout.yaxis.autorange = 'reversed'
+    fig.layout.yaxis.zeroline = False
     return [fig, {'display': 'inline-flex', 'width': '100%'}]
 
 
 if __name__ == '__main__':
     app.run_server()
-
-
