@@ -56,20 +56,20 @@ app.index_string = """
 """
 
 app.layout = html.Div([
-    html.Br(),
-    dbc.Row([
-       dbc.Col([
-           html.A([
-               html.Img(src='data:image/png;base64,' + img_base64, width=200)
-           ], href='https://github.com/eliasdabbas/advertools'),
-       ], sm=12, lg=2, style={'text-align': 'center'}), html.Br(),
-       dbc.Col([
-           html.Br(),
-           html.H1('Google Search Results Pages Rankings',
-                   style={'text-align': 'center'}),
-       ], sm=12, lg=9),
-    ], style={'margin-left': '1%'}),
-    html.Hr(),
+    # html.Br(),
+    # dbc.Row([
+    #    dbc.Col([
+    #        html.A([
+    #            html.Img(src='data:image/png;base64,' + img_base64, width=200)
+    #        ], href='https://github.com/eliasdabbas/advertools'),
+    #    ], sm=12, lg=2, style={'text-align': 'center'}), html.Br(),
+    #    dbc.Col([
+    #        html.Br(),
+    #        html.H1('Google Search Results Pages Rankings',
+    #                style={'text-align': 'center'}),
+    #    ], sm=12, lg=9),
+    # ], style={'margin-left': '1%'}),
+    # html.Hr(),
 
     dbc.Row([
 
