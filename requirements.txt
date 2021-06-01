@@ -35,5 +35,5 @@ retrying==1.3.3
 six==1.12.0
 traitlets==4.3.2
 twython==3.7.0
-urllib3==1.24.3
+urllib3==1.26.5
 Werkzeug==0.15.5
